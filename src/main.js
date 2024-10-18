@@ -16,58 +16,52 @@ async function processRequestPC(username, password, periodo) {
         username: null,
         password: null
     };
+
     try {
         // Autenticar sesión
         sid = await authService.login();
-         // Intentar crear el usuario
-         try {
+
+        // Intentar crear el usuario
+        try {
             await userService.createUser(sid, username, password);
-            
             await authService.publish(sid);
         } catch (error) {
-            // if (error.response && error.response.data.errors) {
-            //     const errorMessage = error.response.data.errors[0].message;
-            //     if (errorMessage.includes("More than one object named")) {
-            //         console.log(`Error de duplicidad detectado: ${errorMessage}`);
-
-            //         // Eliminar el usuario duplicado
-            //         await userService.deleteUser(sid, username);
-            //         // Publicar los cambios
-            //         await authService.publish(sid);
-
-            //         // Intentar crear el usuario nuevamente
-            //         await userService.createUser(sid, username);
-            //     } else {
-            //         throw error;  // Re-lanza si es otro error
-            //     }
-            // }
+            console.log('Capturando el error lanzado por createUser:', error.message); // Log del error
             if (error.response && error.response.data.errors) {
                 const errorMessage = error.response.data.errors[0].message;
-                if (errorMessage.includes("More than one object named")) {
+                console.log('Error message detectado 0:', errorMessage);
+                // Error de duplicidad
+                if (errorMessage.includes("than one object named")) {
                     console.log(`Error de duplicidad detectado: ${errorMessage}`);
 
                     // Eliminar el usuario duplicado
                     await userService.deleteUser(sid, username);
-                    // Publicar los cambios
                     await authService.publish(sid);
 
                     // Intentar crear el usuario nuevamente
                     await userService.createUser(sid, username);
+                    result.status = true;
+
+                // Error por longitud de la contraseña
                 } else if (errorMessage.includes('password length is more than 8 characters')) {
-                    // Identificar el error técnico relacionado con la longitud de la contraseña
                     console.error('Error al crear el usuario:', errorMessage);
                     result.errorMessage = errorMessage; // Guardar mensaje de error técnico
                     result.status = false; // Fallo en la creación del usuario
-                    return result;  // Detener el proceso
+                    return result;  // Detener el proceso aquí
                 } else {
-                    result.errorMessage = errorMessage; // Guardar mensaje de error técnico
+                    // Otros errores
+                    result.errorMessage = errorMessage; 
                     result.status = false;
-                    return result;  // Re-lanza si es otro error
+                    return result; // Detener el proceso aquí
                 }
+            } else {
+                // Si el error no tiene 'response' o 'data', capturamos el error genérico
+                result.errorMessage = error.message || 'Error desconocido al crear el usuario';
+                return result;
             }
         }
 
-        // Generar clave, CSR, y certificado
+        // Generar clave, CSR, y certificado solo si no hubo errores previos
         const keyPath = await certificateService.generatePrivateKey(username);
         const csrPath = await certificateService.generateCSR(username, keyPath);
         const certPath = await certificateService.generateCertificate(username, keyPath, csrPath, periodo);
@@ -79,21 +73,18 @@ async function processRequestPC(username, password, periodo) {
         // Si todo salió bien, actualizar resultado
         result.status = true;
         result.path = p12Path;
-        result.username = username; 
-        result.password = username; 
+        result.username = username;
+        result.password = password;
 
     } catch (error) {
         console.error('Error en el proceso:', error.message);
         if (sid) await authService.discard(sid);
         result.errorMessage = error.message;
         result.status = false;
-    } 
-     // Retornar si fue exitoso o no
-     return result;
-}
+    }
 
-async function processRequestTAB(username) {
-    
+    // Retornar si fue exitoso o no
+    return result;
 }
 
 // Función para calcular el username y contraseña
@@ -110,7 +101,6 @@ function generarCredenciales(nombreCompleto) {
 
     return { username, password };
 }
-
 
 // Parámetros Entrada
 const nombre = 'Xavier Christian Toapanta Alvarado';

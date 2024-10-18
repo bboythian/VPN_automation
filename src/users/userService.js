@@ -8,21 +8,25 @@ class UserService {
         try {
             const response = await this.instance.post(`${this.apiUrl}/add-user`, {
                 name: username,
-                password: password,
+                password: password.substring(0, 7),
+                // password: "abcd",
                 "expiration-date": '2025-12-31',
                 "authentication-method": "INTERNAL_PASSWORD",
                 "groups": ["Funcionario"]
             }, { headers: { 'X-chkp-sid': sid } });
             console.log(`Usuario ${username} creado exitosamente.`);
             return response.data.uid;
-        } catch (error) {
-            if (error.response) {
-                console.error('Error al crear el usuario:', error.response.data);  // Más detalles del error
-            } else {
-                console.error('Error al crear el usuario:', error.message);
-            }
-            throw error;
-        }
+        // } catch (error) {
+        //     const errorMessage = error.response?.data?.message;
+        //     console.error('Error al crear el usuario:', error);
+        //     throw new Error(errorMessage);  // Lanzar el error con solo el mensaje
+        // }
+    } catch (error) {
+        const errorMessage = error.response?.data?.message || 'Error desconocido al crear el usuario';
+        const errorDetails = error.response?.data?.errors || [];  // Obtener detalles de los errores específicos
+        console.error('Error al crear el usuario:', errorMessage, errorDetails);  // Mostrar el mensaje y los detalles
+        throw new Error(`${errorMessage}: ${JSON.stringify(errorDetails)}`);  // Lanzar el error con más detalles
+    }
     }
 
     async deleteUser(sid, username) {
