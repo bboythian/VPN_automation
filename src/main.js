@@ -26,38 +26,29 @@ async function processRequestPC(username, password, periodo) {
             await userService.createUser(sid, username, password);
             await authService.publish(sid);
         } catch (error) {
-            console.log('Capturando el error lanzado por createUser:', error.message); // Log del error
-            if (error.response && error.response.data.errors) {
-                const errorMessage = error.response.data.errors[0].message;
-                console.log('Error message detectado 0:', errorMessage);
-                // Error de duplicidad
-                if (errorMessage.includes("than one object named")) {
-                    console.log(`Error de duplicidad detectado: ${errorMessage}`);
+            console.log('Catch error:', error.message); // Log del error
+            const errorMessage = error.message;
+            // Error de duplicidad
+            if (errorMessage.includes("than one object named")) {
+                console.log(`Error de duplicidad detectado: ${errorMessage}`);
 
-                    // Eliminar el usuario duplicado
-                    await userService.deleteUser(sid, username);
+                // Eliminar el usuario duplicado
+                await userService.deleteUser(sid, username);
+                await authService.publish(sid);
+
+                try {
+                    await userService.createUser(sid, username, password);
                     await authService.publish(sid);
-
-                    // Intentar crear el usuario nuevamente
-                    await userService.createUser(sid, username);
                     result.status = true;
-
-                // Error por longitud de la contraseña
-                } else if (errorMessage.includes('password length is more than 8 characters')) {
-                    console.error('Error al crear el usuario:', errorMessage);
-                    result.errorMessage = errorMessage; // Guardar mensaje de error técnico
-                    result.status = false; // Fallo en la creación del usuario
-                    return result;  // Detener el proceso aquí
-                } else {
-                    // Otros errores
-                    result.errorMessage = errorMessage; 
-                    result.status = false;
-                    return result; // Detener el proceso aquí
                 }
+                catch (error) {
+                    result.status = false;
+                 }
+
+            // Error por longitud de la contraseña
             } else {
-                // Si el error no tiene 'response' o 'data', capturamos el error genérico
-                result.errorMessage = error.message || 'Error desconocido al crear el usuario';
-                return result;
+                result.errorMessage = error.message || 'Error desconocido al crear el usuario después de eliminar el duplicado';
+                return result; // Detener el proceso aquí
             }
         }
 
@@ -110,6 +101,7 @@ const credenciales = generarCredenciales(nombre);
 
 console.log('Username:', credenciales.username);
 console.log('Password:', credenciales.password);
+console.log('Periodo:', periodo);
 
 // Main
 async function main() {

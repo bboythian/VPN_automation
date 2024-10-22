@@ -8,25 +8,27 @@ class UserService {
         try {
             const response = await this.instance.post(`${this.apiUrl}/add-user`, {
                 name: username,
-                password: password.substring(0, 7),
-                // password: "abcd",
+                // password: password.substring(0, 7),
+                password: password.substring(0, 8),
                 "expiration-date": '2025-12-31',
                 "authentication-method": "INTERNAL_PASSWORD",
                 "groups": ["Funcionario"]
             }, { headers: { 'X-chkp-sid': sid } });
-            console.log(`Usuario ${username} creado exitosamente.`);
+            console.log(`Usuario ${username}     creado exitosamente, con pass: ${password.substring(0, 8)}`);
             return response.data.uid;
-        // } catch (error) {
-        //     const errorMessage = error.response?.data?.message;
-        //     console.error('Error al crear el usuario:', error);
-        //     throw new Error(errorMessage);  // Lanzar el error con solo el mensaje
-        // }
-    } catch (error) {
-        const errorMessage = error.response?.data?.message || 'Error desconocido al crear el usuario';
-        const errorDetails = error.response?.data?.errors || [];  // Obtener detalles de los errores específicos
-        console.error('Error al crear el usuario:', errorMessage, errorDetails);  // Mostrar el mensaje y los detalles
-        throw new Error(`${errorMessage}: ${JSON.stringify(errorDetails)}`);  // Lanzar el error con más detalles
-    }
+        } catch (error) {
+            const errorMessage = error.response?.data?.message || 'Error desconocido al crear el usuario';
+            const errorDetails = error.response?.data?.errors || [];  // Obtener detalles de los errores específicos
+
+            console.error('Error al crear el usuario:', errorMessage, errorDetails);
+
+            // Extraer y enviar solo el texto del mensaje de error
+            if (errorDetails.length > 0 && errorDetails[0].message) {
+                throw new Error(errorDetails[0].message);  // Enviar solo el mensaje sin llaves ni comillas
+            } else {
+                throw new Error(errorMessage);  // Si no hay detalles, enviar el mensaje general
+            }
+        }
     }
 
     async deleteUser(sid, username) {
