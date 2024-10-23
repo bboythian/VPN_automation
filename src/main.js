@@ -7,7 +7,7 @@ const userService = new UserService(authService.instance, authService.apiUrl);
 const certificateService = new CertificateService();
 
 // Función principal para manejar el proceso
-async function processRequestPC(username, password, periodo) {
+async function processRequestPC(username, password, fechaFinal) {
     let sid;
     let result = {
         errorMessage: null,
@@ -23,13 +23,13 @@ async function processRequestPC(username, password, periodo) {
 
         // Intentar crear el usuario
         try {
-            await userService.createUser(sid, username, password);
+            await userService.createUser(sid, username, password, fechaFinal);
             await authService.publish(sid);
         } catch (error) {
             console.log('Catch error:', error.message); // Log del error
             const errorMessage = error.message;
             // Error de duplicidad
-            if (errorMessage.includes("than one object named")) {
+            if (errorMessage.includes("More than one object named")) {
                 console.log(`Error de duplicidad detectado: ${errorMessage}`);
 
                 // Eliminar el usuario duplicado
@@ -37,7 +37,7 @@ async function processRequestPC(username, password, periodo) {
                 await authService.publish(sid);
 
                 try {
-                    await userService.createUser(sid, username, password);
+                    await userService.createUser(sid, username, password, fechaFinal);
                     await authService.publish(sid);
                     result.status = true;
                 }
@@ -93,23 +93,39 @@ function generarCredenciales(nombreCompleto) {
     return { username, password };
 }
 
+
+
+// Función para calcular la fecha final en formato YYYY-MM-DD
+function calcularFechaFinal(periodoDias) {
+    const fechaActual = new Date();
+    // Sumar el período de días a la fecha actual
+    fechaActual.setDate(fechaActual.getDate() + periodoDias);
+    // Formatear la fecha en 'YYYY-MM-DD'
+    const year = fechaActual.getFullYear();
+    const month = String(fechaActual.getMonth() + 1).padStart(2, '0');
+    const day = String(fechaActual.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
 // Parámetros Entrada
 const nombre = 'Xavier Christian Toapanta Alvarado';
 const tipoDispositivo = 'PC'; //TAB O PC
-const periodo = 60; //días
+const periodo = 35; //días
 const credenciales = generarCredenciales(nombre);
+const fechaFinal = calcularFechaFinal(periodo);
 
 console.log('Username:', credenciales.username);
 console.log('Password:', credenciales.password);
-console.log('Periodo:', periodo);
+console.log('Periodo:', periodo,'días.');
+
 
 // Main
 async function main() {
     let result;
     if (tipoDispositivo === 'TAB') {
-        result = await processRequestTAB(credenciales.username, credenciales.password, periodo);
+        result = await processRequestTAB(credenciales.username, credenciales.password, fechaFinal);
     } else if (tipoDispositivo === 'PC') {
-        result = await processRequestPC(credenciales.username, credenciales.password, periodo);
+        result = await processRequestPC(credenciales.username, credenciales.password, fechaFinal);
     }
 
     console.log('Resolve:', result); // Muestra true o false

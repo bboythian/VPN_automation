@@ -4,13 +4,15 @@ class UserService {
         this.apiUrl = apiUrl;
     }
 
-    async createUser(sid, username, password) {
+    async createUser(sid, username, password, fechaFinal) {
+        console.log('Fecha llega:', fechaFinal);
+
         try {
             const response = await this.instance.post(`${this.apiUrl}/add-user`, {
                 name: username,
                 // password: password.substring(0, 7),
                 password: password.substring(0, 8),
-                "expiration-date": '2025-12-31',
+                "expiration-date": fechaFinal,
                 "authentication-method": "INTERNAL_PASSWORD",
                 "groups": ["Funcionario"]
             }, { headers: { 'X-chkp-sid': sid } });
@@ -41,15 +43,6 @@ class UserService {
         }
     }
 
-    async userExists(sid, username) {
-        try {
-            const response = await this.instance.post(`${this.apiUrl}/show-users`, { limit: 50, "details-level": "full" }, { headers: { 'X-chkp-sid': sid } });
-            return response.data.objects.some(user => user.name === username);
-        } catch (error) {
-            console.error('Error al verificar si el usuario existe:', error.message);
-            throw error;
-        }
-    }
 }
 
 module.exports = UserService;
