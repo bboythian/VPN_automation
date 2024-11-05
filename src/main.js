@@ -7,7 +7,7 @@ const userService = new UserService(authService.instance, authService.apiUrl);
 const certificateService = new CertificateService();
 
 // Función principal para manejar el proceso
-async function processRequestPC(username, password, fechaFinal) {
+async function processRequestPC(username, password, finalDate) {
     let sid;
     let result = {
         errorMessage: null,
@@ -23,10 +23,10 @@ async function processRequestPC(username, password, fechaFinal) {
 
         // Intentar crear el usuario
         try {
-            await userService.createUser(sid, username, password, fechaFinal);
+            await userService.createUser(sid, username, password, finalDate);
             await authService.publish(sid);
         } catch (error) {
-            console.log('Catch error:', error.message); // Log del error
+            // console.log('Catch error:', error.message); // Log del error
             const errorMessage = error.message;
             // Error de duplicidad
             if (errorMessage.includes("More than one object named")) {
@@ -37,7 +37,8 @@ async function processRequestPC(username, password, fechaFinal) {
                 await authService.publish(sid);
 
                 try {
-                    await userService.createUser(sid, username, password, fechaFinal);
+                    console.log('Reintento de crear usuario ...');
+                    await userService.createUser(sid, username, password, finalDate);
                     await authService.publish(sid);
                     result.status = true;
                 }
@@ -55,17 +56,18 @@ async function processRequestPC(username, password, fechaFinal) {
         // Generar clave, CSR, y certificado solo si no hubo errores previos
         const keyPath = await certificateService.generatePrivateKey(username);
         const csrPath = await certificateService.generateCSR(username, keyPath);
-        const certPath = await certificateService.generateCertificate(username, keyPath, csrPath, periodo);
+        const certPath = await certificateService.generateCertificate(username, keyPath, csrPath, period);
         const p12Path = await certificateService.generateP12(username, keyPath, certPath);
 
         // Publicar cambios
         await authService.publish(sid);
 
-        // Si todo salió bien, actualizar resultado
+        // Success
         result.status = true;
         result.path = p12Path;
         result.username = username;
         result.password = password;
+        console.log('*** Proceso ejecutado correctamente ***');
 
     } catch (error) {
         console.error('Error en el proceso:', error.message);
@@ -77,58 +79,111 @@ async function processRequestPC(username, password, fechaFinal) {
     // Retornar si fue exitoso o no
     return result;
 }
+async function processRequestTAB(username, password, finalDate) {
+    //Completar metodo para generar clave de autentificacion del usuario
+
+    // Método para aplicar la contraseña de autenticación al usuario
+    try {
+        await userService.setAuthenticationPassword(sid, username, password);
+        await authService.publish(sid);
+        result.status = true;
+    } catch (error) {
+        console.error('Error al aplicar contraseña de autenticación:', error.message);
+        result.errorMessage = 'Error al aplicar la contraseña de autenticación';
+        return result;
+    }
+}
 
 // Función para calcular el username y contraseña
-function generarCredenciales(nombreCompleto) {
-    const nombreArray = nombreCompleto.split(' '); // Dividir el nombre en partes
-    const primerNombre = nombreArray[0]; // Primer nombre
-    const apellido = nombreArray[2]; // Primer apellido (Toapanta en este caso)
+function generateCredentials(fullName) {
+    let result = { errorMessage: null, username: null, password: null };
 
-    // Generar username en formato Func_CToapanta
-    const username = `Funcionario_${primerNombre}${apellido.charAt(0).toUpperCase()}${apellido.slice(1).toLowerCase()}`;
+    try {
+        if (!fullName || typeof fullName !== 'string' || fullName.trim().split(' ').length < 3) {
+            throw new Error('Nombre inválido: Debe incluir al menos nombre y dos apellidos');
+        }
+        const nameArray = fullName.trim().split(' ');
+        const firstName = nameArray[0];
+        const lastName = nameArray[2]; // Primer apellido 
 
-    // Generar contraseña en formato ctoapanta
-    const password = `${primerNombre.charAt(0).toLowerCase()}${apellido.toLowerCase()}`;
+        const username = `Funcionario_${firstName.charAt(0).toUpperCase()}${firstName.slice(1).toLowerCase()}${lastName.charAt(0).toUpperCase()}${lastName.slice(1).toLowerCase()}`;
+        const password = `${firstName.charAt(0).toLowerCase()}${lastName.toLowerCase()}`;
 
-    return { username, password };
+        result.username = username;
+        result.password = password.substring(0,8);
+        // result.password = password.substring(0, 8);
+
+    } catch (error) {
+        result.errorMessage = error.message;
+    }
+
+    return result;
 }
 
 
 
-// Función para calcular la fecha final en formato YYYY-MM-DD
-function calcularFechaFinal(periodoDias) {
-    const fechaActual = new Date();
-    // Sumar el período de días a la fecha actual
-    fechaActual.setDate(fechaActual.getDate() + periodoDias);
-    // Formatear la fecha en 'YYYY-MM-DD'
-    const year = fechaActual.getFullYear();
-    const month = String(fechaActual.getMonth() + 1).padStart(2, '0');
-    const day = String(fechaActual.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+// Función para calcular la fecha final con validación del período
+function calculateDateExp(periodDays) {
+    let result = { errorMessage: null, finalDate: null };
+
+    try {
+        if (isNaN(periodDays) || periodDays <= 0) {
+            throw new Error('Período inválido: debe ser un número positivo');
+        }
+
+        const fechaActual = new Date();
+        fechaActual.setDate(fechaActual.getDate() + periodDays);
+
+        const year = fechaActual.getFullYear();
+        const month = String(fechaActual.getMonth() + 1).padStart(2, '0');
+        const day = String(fechaActual.getDate()).padStart(2, '0');
+        result.finalDate = `${year}-${month}-${day}`;
+    } catch (error) {
+        result.errorMessage = error.message;
+    }
+
+    return result;
+}
+// Proceso principal
+async function main() {
+    let result = { errorMessage: null, status: false };
+    // Validacion de credenciales correctas
+    if (credenciales.errorMessage || dateResult.errorMessage) {
+        result.errorMessage = credenciales.errorMessage || dateResult.errorMessage;
+        console.log('Resolve:', result);
+        return;
+    }
+
+    //Seleccion de proceso por dispositivo
+    if (deviceType === 'TAB') {
+        result = await processRequestTAB(credenciales.username, credenciales.password, dateResult.finalDate);
+    } else if (deviceType === 'PC') {
+        result = await processRequestPC(credenciales.username, credenciales.password, dateResult.finalDate);
+    }
+
+    console.log('Resolve:', result);
 }
 
 // Parámetros Entrada
-const nombre = 'Xavier Christian Toapanta Alvarado';
-const tipoDispositivo = 'PC'; //TAB O PC
-const periodo = 35; //días
-const credenciales = generarCredenciales(nombre);
-const fechaFinal = calcularFechaFinal(periodo);
+const fullName = 'PEDRO XAVIER ALVARADO RAMIRES';
+const deviceType = 'PC'; //TAB O PC
+const period = 365; //días
 
-console.log('Username:', credenciales.username);
-console.log('Password:', credenciales.password);
-console.log('Periodo:', periodo,'días.');
+//Calculo de credenciales y fechas
+const credenciales = generateCredentials(fullName);
+const dateResult = calculateDateExp(period);
 
-
-// Main
-async function main() {
-    let result;
-    if (tipoDispositivo === 'TAB') {
-        result = await processRequestTAB(credenciales.username, credenciales.password, fechaFinal);
-    } else if (tipoDispositivo === 'PC') {
-        result = await processRequestPC(credenciales.username, credenciales.password, fechaFinal);
-    }
-
-    console.log('Resolve:', result); // Muestra true o false
+if (credenciales.errorMessage) {
+    console.error('Error en credenciales:', credenciales.errorMessage);
+} else {
+    console.log('Username:', credenciales.username);
+    console.log('Password:', credenciales.password);
+}
+if (dateResult.errorMessage) {
+    console.error('Error en fecha de expiración:', dateResult.errorMessage);
+} else {
+    console.log('Fecha de Expiración:', dateResult.finalDate);
+    console.log('Periodo:', period, 'días.');
 }
 
 main();

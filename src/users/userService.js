@@ -5,13 +5,10 @@ class UserService {
     }
 
     async createUser(sid, username, password, fechaFinal) {
-        console.log('Fecha llega:', fechaFinal);
-
         try {
             const response = await this.instance.post(`${this.apiUrl}/add-user`, {
                 name: username,
-                // password: password.substring(0, 7),
-                password: password.substring(0, 8),
+                password: password,
                 "expiration-date": fechaFinal,
                 "authentication-method": "INTERNAL_PASSWORD",
                 "groups": ["Funcionario"]
@@ -40,6 +37,21 @@ class UserService {
         } catch (error) {
             console.error('Error al eliminar el usuario:', error.message);
             throw error;
+        }
+    }
+    async setAuthenticationPassword(sid, username, password) {
+        try {
+            const response = await this.instance.post(`${this.apiUrl}/set-user`, {
+                name: username,
+                password: password, 
+                "authentication-method": "INTERNAL_PASSWORD"
+            }, { headers: { 'X-chkp-sid': sid } });
+            console.log(`Contraseña de autenticación establecida exitosamente para el usuario ${username}.`);
+            return response.data;
+        } catch (error) {
+            const errorMessage = error.response?.data?.message || 'Error desconocido al establecer la contraseña';
+            console.error(`Error al establecer la contraseña de autenticación para el usuario ${username}:`, errorMessage);
+            throw new Error(errorMessage);
         }
     }
 

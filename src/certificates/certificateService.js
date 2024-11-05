@@ -22,7 +22,7 @@ class CertificateService {
     async generateCSR(username, keyPath) {
         const csrPath = path.resolve(`./certs/${username}csr.pem`);
         const command = `openssl req -new -key "${keyPath}" -out "${csrPath}" -subj "/CN=${username}"`;
-        console.log('Generando CSR...');
+        // console.log('Generando CSR...');
         await CommandExecutor.execCommand(command);
         return csrPath;
     }

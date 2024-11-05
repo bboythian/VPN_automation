@@ -34,7 +34,7 @@ class AuthService {
     async publish(sid) {
         try {
             const response = await this.instance.post(`${this.apiUrl}/publish`, {}, { headers: { 'X-chkp-sid': sid } });
-            console.log('Cambios publicados correctamente.');
+            // console.log('Cambios publicados correctamente.');
             return response.data;
         } catch (error) {
             console.error('Error al publicar los cambios:', error.message);
